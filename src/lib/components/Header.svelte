@@ -7,6 +7,8 @@
               <li><a href="/">Inicio</a></li>
               <li><a href="/biblioteca">Biblioteca</a></li>
               <li><a href="/nube">Subir Libro</a></li>
+              <li><a href="https://ximosa.github.io/historia/">Historico</a></li>
+              <li><a href="/buscar">Buscar</a></li>
           </ul>
       </nav>
   </header>

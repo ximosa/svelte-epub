@@ -1,215 +1,191 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
-  import ePub from 'epubjs';
-  
-  export let file;
-  
-  let viewer;
-  let book;
-  let rendition;
-  let toc = [];
-  let showToc = false;
-  let fontSize = 100;
-  let theme = 'light';
-    onMount(async () => {
-      try {
-        // Usar FileReader para leer el archivo como ArrayBuffer
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          const arrayBuffer = e.target.result;
-          book = ePub(arrayBuffer);
-        
-          await book.ready;
-        
-          rendition = book.renderTo(viewer, {
-            width: '100%',
-            height: '100%',
-            spread: 'none',
-            flow: 'paginated'
-          });
+  import { onMount } from 'svelte';
+  import EpubReader from '$lib/components/EpubReader.svelte';
 
-          const navigation = await book.loaded.navigation;
-          toc = navigation.toc;
-        
-          await rendition.display();
-        };
-      
-        reader.readAsArrayBuffer(file);
+  let searchQuery = '';
+  let searchResults = [];
+  let loading = false;
+  let file = null;
+  let mostrarLector = false;
 
-        document.addEventListener('keyup', handleKeyPress);
-      } catch (error) {
-        console.log('Error al cargar el libro:', error);
-      }
-    });
-  onDestroy(() => {
-    document.removeEventListener('keyup', handleKeyPress);
-    if (book) {
-      book.destroy();
-    }
+  // Añadimos logs para rastrear el flujo
+  onMount(() => {
+      console.log('Componente montado');
   });
 
-  function handleKeyPress(e) {
-    if (e.key === 'ArrowLeft') prevPage();
-    if (e.key === 'ArrowRight') nextPage();
+  function buscarLibros() {
+      console.log('Iniciando búsqueda:', searchQuery);
+      if (!searchQuery.trim()) return;
+      
+      loading = true;
+      const baseUrl = 'https://archive.org/advancedsearch.php';
+      const params = new URLSearchParams({
+          q: `${searchQuery} AND mediatype:(texts) AND format:(EPUB) AND language:(spa)`,
+          fl: 'identifier,title,creator,year,downloads',
+          sort: ['downloads desc'],
+          rows: '50',
+          output: 'json'
+      });
+
+      fetch(`${baseUrl}?${params.toString()}`)
+      .then(response => response.json())
+      .then(data => {
+          console.log('Resultados obtenidos:', data.response.docs);
+          searchResults = data.response.docs;
+          loading = false;
+      })
+      .catch(error => {
+          console.error('Error en búsqueda:', error);
+          loading = false;
+      });
   }
 
-  function nextPage() {
-    rendition.next();
-  }
-
-  function prevPage() {
-    rendition.prev();
-  }
-
-  function navigateToChapter(href) {
-    rendition.display(href);
-    showToc = false;
-  }
-
-  function changeFontSize(size) {
-    fontSize = size;
-    rendition.themes.fontSize(`${size}%`);
-  }
-
-  function toggleTheme() {
-    theme = theme === 'light' ? 'dark' : 'light';
-    rendition.themes.register(theme, {
-      body: {
-        background: theme === 'light' ? '#ffffff' : '#222222',
-        color: theme === 'light' ? '#000000' : '#ffffff'
+  async function cargarLibro(identifier) {
+      console.log('Intentando cargar libro con ID:', identifier);
+      try {
+          loading = true;
+          const downloadUrl = `https://archive.org/download/${identifier}/${identifier}.epub`;
+          console.log('URL de descarga construida:', downloadUrl);
+          
+          const response = await fetch(downloadUrl);
+          if (!response.ok) {
+              throw new Error(`Error al descargar: ${response.status}`);
+          }
+          
+          const blob = await response.blob();
+          file = new Blob([blob], { type: 'application/epub+zip' });
+          console.log('Libro cargado correctamente');
+          mostrarLector = true;
+          
+      } catch (error) {
+          console.error('Error detallado:', error);
+          alert('Error al cargar el libro');
+      } finally {
+          loading = false;
       }
-    });
-    rendition.themes.select(theme);
   }
 </script>
-
-<div class="reader-container" class:dark={theme === 'dark'}>
-  <div class="toolbar">
-    <button on:click={() => showToc = !showToc}>
-      Índice
-    </button>
-    <div class="font-controls">
-      <button on:click={() => changeFontSize(fontSize - 10)}>A-</button>
-      <button on:click={() => changeFontSize(100)}>A</button>
-      <button on:click={() => changeFontSize(fontSize + 10)}>A+</button>
-    </div>
-    <button on:click={toggleTheme}>
-      {theme === 'light' ? '🌙' : '☀️'}
-    </button>
-  </div>
-
-  <div class="content-area">
-    {#if showToc}
-      <div class="toc-panel">
-        <h3>Tabla de Contenidos</h3>
-        <ul>
-          {#each toc as chapter}
-            <li>
-              <button on:click={() => navigateToChapter(chapter.href)}>
-                {chapter.label}
-              </button>
-            </li>
-          {/each}
-        </ul>
+<div class="contenedor-busqueda">
+  {#if !mostrarLector}
+      <h1>Buscar Libros</h1>
+      <div class="barra-busqueda">
+          <input 
+              type="text" 
+              bind:value={searchQuery} 
+              placeholder="Buscar libros en español..."
+              on:keypress={(e) => e.key === 'Enter' && buscarLibros()}
+          />
+          <button on:click={buscarLibros} disabled={loading}>
+              {loading ? 'Buscando...' : 'Buscar'}
+          </button>
       </div>
-    {/if}
 
-    <div class="epub-viewer" bind:this={viewer}></div>
-  </div>
-
-  <div class="controls">
-    <button on:click={prevPage}>←</button>
-    <button on:click={nextPage}>→</button>
-  </div>
+      <div class="grid-libros">
+          {#each searchResults as libro}
+              <div class="tarjeta-libro" on:click={() => cargarLibro(libro.identifier)}>
+                  <div class="portada-libro">📚</div>
+                  <div class="titulo-libro">{libro.title}</div>
+                  {#if libro.creator}
+                      <div class="autor-libro">{libro.creator}</div>
+                  {/if}
+              </div>
+          {/each}
+      </div>
+  {:else}
+      <button class="boton-volver" on:click={() => mostrarLector = false}>
+          Volver a la búsqueda
+      </button>
+      <EpubReader {file} />
+  {/if}
 </div>
 
+
 <style>
-  .reader-container {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background: white;
+  .contenedor-busqueda {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
   }
 
-  .reader-container.dark {
-    background: #222222;
-    color: white;
+  .barra-busqueda {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
   }
 
-  .toolbar {
-    padding: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #ccc;
+  input {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
   }
 
-  .content-area {
-    flex: 1;
-    display: flex;
-    position: relative;
+  .grid-libros {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 2rem;
   }
 
-  .epub-viewer {
-    flex: 1;
-    overflow: hidden;
-  }
-  .epub-viewer img {
-    max-width: 50%;
-    height: auto;
-    object-fit: contain;
-}
-  .toc-panel {
-    width: 250px;
-    background: #f5f5f5;
-    padding: 1rem;
-    overflow-y: auto;
-    border-right: 1px solid #ccc;
+  .tarjeta-libro {
+      border: 1px solid #ddd;
+      padding: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      background: white;
   }
 
-  .dark .toc-panel {
-    background: #333333;
+  .tarjeta-libro:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
   }
 
-  .controls {
-    padding: 1rem;
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
+  .portada-libro {
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      font-size: 3rem;
+      border-radius: 4px;
   }
 
-  button {
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    border: none;
-    border-radius: 4px;
-    background: #2c2e2c;
-    color: white;
+  .titulo-libro {
+      margin-top: 1rem;
+      font-weight: bold;
+      text-align: center;
   }
 
-  button:hover {
-    background: #04720a;
+  .autor-libro {
+      color: #666;
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 0.5rem;
   }
 
-  .font-controls {
-    display: flex;
-    gap: 0.5rem;
+  .descargas, .valoracion {
+      font-size: 0.8rem;
+      color: #666;
+      text-align: center;
+      margin-top: 0.5rem;
   }
 
-  ul {
-    list-style: none;
-    padding: 0;
+  .valoracion {
+      color: #f0ad4e;
   }
 
-  li button {
-    width: 100%;
-    text-align: left;
-    background: none;
-    color: inherit;
-    padding: 0.5rem;
+  .boton-volver {
+      margin-bottom: 1rem;
+      padding: 0.5rem 1rem;
+      background: #2c2e2c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
   }
 
-  li button:hover {
-    background: rgba(0, 0, 0, 0.1);
+  .boton-volver:hover {
+      background: #04720a;
   }
 </style>
