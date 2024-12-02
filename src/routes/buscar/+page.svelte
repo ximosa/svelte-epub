@@ -1,6 +1,8 @@
 <script>
     import { onMount } from 'svelte';
     import EpubReader from '$lib/components/EpubReader.svelte';
+    import { currentBook } from '$lib/stores';
+    import { goto } from '$app/navigation';
 
     let searchQuery = '';
     let searchResults = [];
@@ -14,68 +16,72 @@
         ePub = epubModule.default;
     });
 
-    function searchBooks() {
-        if (!searchQuery.trim()) {
-            alert('Por favor, introduce un término de búsqueda');
-            return;
-        }
+    async function searchBooks() {
+    if (!searchQuery.trim()) {
+        alert('Por favor, introduce un término de búsqueda');
+        return;
+    }
 
+    loading = true;
+    searchResults = [];
+    
+    const searchUrl = 'https://archive.org/advancedsearch.php';
+    const params = new URLSearchParams({
+        q: `title:(${searchQuery}) AND mediatype:(texts)`,
+        fl: ['identifier', 'title', 'creator', 'format'].join(','),
+        output: 'json',
+        rows: '50'
+    });
+
+    try {
+        const response = await fetch(`${searchUrl}?${params}`);
+        const data = await response.json();
+        searchResults = data.response.docs;
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error en la búsqueda');
+    } finally {
+        loading = false;
+    }
+}
+
+async function cargarLibro(identifier) {
+    try {
         loading = true;
-        searchResults = [];
+        const detailsUrl = `https://archive.org/details/${identifier}?output=json`;
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(detailsUrl)}`;
         
-        const baseUrl = 'https://archive.org/advancedsearch.php';
-        const params = new URLSearchParams({
-            q: `${searchQuery} AND mediatype:(texts) AND language:(spa)`,
-            fl: 'identifier,title,creator,year',
-            rows: '50',
-            output: 'json'
-        });
-
-        fetch(`${baseUrl}?${params.toString()}`)
-        .then(response => response.json())
-        .then(data => {
-            console.log('Resultados:', data);
-            searchResults = data.response.docs;
-            loading = false;
-        })
-        .catch(error => {
-            console.error('Error en búsqueda:', error);
-            loading = false;
-            alert('Error al realizar la búsqueda');
-        });
+        const detailsResponse = await fetch(proxyUrl);
+        const details = await detailsResponse.json();
+        
+        // Construir URL usando el formato estándar de Archive.org
+        const epubUrl = `https://archive.org/download/${identifier}/${identifier}_epub.epub`;
+        console.log('URL final del EPUB:', epubUrl);
+        
+        const response = await fetch(`/api/proxy?url=${encodeURIComponent(epubUrl)}`);
+        if (!response.ok) throw new Error('Error al descargar el libro');
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: 'application/epub+zip' });
+        
+        await goto('/reader', { state: { file: blob } });
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar el EPUB. Por favor, intenta con otro libro.');
+    } finally {
+        loading = false;
     }
+}
 
-  async function cargarLibro(identifier) {
-        try {
-            loading = true;
-            // Use the read.php endpoint which is CORS-friendly
-            const readUrl = `https://archive.org/services/loans/loan/?action=media_url&identifier=${identifier}&format=pdf`;
-            const response = await fetch(readUrl);
-            const data = await response.json();
-            
-            if (data.url) {
-                // Create an iframe to display the book
-                const iframe = document.createElement('iframe');
-                iframe.src = `https://archive.org/embed/${identifier}`;
-                iframe.style.width = '100%';
-                iframe.style.height = '100vh';
-                iframe.style.border = 'none';
-                
-                // Clear the container and add the iframe
-                const container = document.querySelector('.reader-container');
-                container.innerHTML = '';
-                container.appendChild(iframe);
-                mostrarLector = true;
-            } else {
-                throw new Error('Libro no disponible');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Este libro no está disponible para lectura en línea. Intenta con otro.');
-        } finally {
-            loading = false;
-        }
-    }
+
+
+
+
+
+
+
+
 
 
     function handleKeyPress(event) {
@@ -84,7 +90,6 @@
         }
     }
 </script>
-
 <div class="busqueda-container">
     {#if !mostrarLector}
         <h1>Buscar Libros</h1>
@@ -122,10 +127,17 @@
             {/each}
         </div>
     {:else}
-        <button class="back-button" on:click={() => mostrarLector = false}>
-            Volver a la búsqueda
-        </button>
-        <div class="reader-container"></div>
+    {#if mostrarLector}
+    <button class="back-button" on:click={() => mostrarLector = false}>
+        Volver a la búsqueda
+    </button>
+    <div class="reader-container">
+        <EpubReader {file} />
+    </div>
+{/if}
+
+
+
     {/if}
 </div>
 
