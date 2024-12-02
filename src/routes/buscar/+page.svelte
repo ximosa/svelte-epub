@@ -74,16 +74,6 @@ async function cargarLibro(identifier) {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
             searchBooks();
