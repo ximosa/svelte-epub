@@ -3,21 +3,44 @@
   let file = null;
   let showReader = false;
   let epubUrl = '';
-  
-  function handleFileSelect(event) {
+
+  async function handleFileSelect(event) {
     const selectedFile = event.target.files[0];
     if (selectedFile && selectedFile.type === 'application/epub+zip') {
       file = selectedFile;
+      epubUrl = '';  // Limpiamos la URL si existe
       showReader = true;
     }
   }
 
-  function handleUrlSubmit() {
+  async function handleUrlSubmit() {
     if (epubUrl) {
-      file = epubUrl;
-      showReader = true;
+        try {
+            // Usamos nuestro propio endpoint como proxy
+            const proxyUrl = '/api/books/download?url=' + encodeURIComponent(epubUrl);
+            const response = await fetch(proxyUrl);
+            
+            if (!response.ok) {
+                throw new Error('Error al descargar el archivo');
+            }
+            
+            const blob = await response.blob();
+            const fileName = epubUrl.split('/').pop() || 'libro.epub';
+            
+            file = new File([blob], fileName, { 
+                type: 'application/epub+zip' 
+            });
+            showReader = true;
+            
+        } catch (error) {
+            console.log('Error al cargar el EPUB:', error);
+        }
     }
-  }
+}
+
+
+
+
 </script>
 
 <main>
