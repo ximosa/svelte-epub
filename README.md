@@ -1,38 +1,66 @@
-# sv
+# EPUB Reader & Library Manager
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+## 📚 Descripción
+Aplicación web desarrollada con SvelteKit que permite gestionar y leer libros electrónicos desde múltiples fuentes. Integra un lector EPUB y acceso a diversas APIs de bibliotecas digitales.
 
-## Creating a project
+## ⭐ Características Principales
 
-If you're seeing this, you've probably already done this step. Congrats!
+### Lector EPUB
+- Apertura de archivos EPUB locales
+- Carga de libros desde URLs
+- Visor integrado con controles de lectura
+
+### Múltiples Fuentes de Libros
+- Google Books API (libros gratuitos en español)
+- Project Gutenberg
+- Internet Archive
+- Biblioteca Digital Mundial
+
+### Funcionalidades
+- Búsqueda avanzada con filtros
+- Sistema de paginación
+- Vista previa de libros
+- Descarga directa en formato EPUB
+- Interfaz minimalista en tonos oscuros
+
+## 🚀 Instalación
 
 ```bash
-# create a new project in the current directory
-npx sv create
+# Clonar repositorio
+git clone [https://github.com/ximosa/svelte-epub/]
 
-# create a new project in my-app
-npx sv create my-app
-```
+# Instalar dependencias
+npm install
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
+# Iniciar en modo desarrollo
 npm run dev
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+## 🛠️ Tecnologías
+- SvelteKit
+- TypeScript
+- EPUB.js
+- Vite
 
-## Building
+## 📱 Uso
+- Accede a la página principal para cargar EPUBs locales o desde URL
+- Utiliza la sección de Google Books para buscar libros gratuitos
+- Explora las diferentes APIs integradas para encontrar más contenido
+- Descarga o lee directamente en el visor integrado
 
-To create a production version of your app:
+## 🔗 APIs Integradas
+- Google Books API
+- Project Gutenberg API
+- Internet Archive API
+- World Digital Library API
 
-```bash
-npm run build
-```
+## 🎨 Interfaz
+- Diseño responsivo
+- Tema oscuro
+- Controles intuitivos
+- Vista en rejilla para resultados
 
-You can preview the production build with `npm run preview`.
+## 📄 Licencia
+MIT License
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## 🤝 Contribuciones
+Las contribuciones son bienvenidas. Por favor, abre un issue primero para discutir los cambios propuestos.
