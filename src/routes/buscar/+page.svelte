@@ -1,113 +1,108 @@
 <script>
-    import { onMount } from 'svelte';
-    import EpubReader from '$lib/components/EpubReader.svelte';
-    import { currentBook } from '$lib/stores';
-    import { goto } from '$app/navigation';
-
     let searchQuery = '';
     let searchResults = [];
     let loading = false;
-    let file = null;
-    let mostrarLector = false;
-    let ePub;
-
-    onMount(async () => {
-        const epubModule = await import('epubjs');
-        ePub = epubModule.default;
-    });
+    let selectedItem = null;
+    let iframeLoading = false;
 
     async function searchBooks() {
-    if (!searchQuery.trim()) {
-        alert('Por favor, introduce un término de búsqueda');
-        return;
-    }
+        if (!searchQuery.trim()) {
+            alert('Por favor, introduce un término de búsqueda');
+            return;
+        }
 
-    loading = true;
-    searchResults = [];
-    
-    const searchUrl = 'https://archive.org/advancedsearch.php';
-    const params = new URLSearchParams({
-        q: `title:(${searchQuery}) AND mediatype:(texts)`,
-        fl: ['identifier', 'title', 'creator', 'format'].join(','),
-        output: 'json',
-        rows: '50'
-    });
-
-    try {
-        const response = await fetch(`${searchUrl}?${params}`);
-        const data = await response.json();
-        searchResults = data.response.docs;
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error en la búsqueda');
-    } finally {
-        loading = false;
-    }
-}
-
-async function cargarLibro(identifier) {
-    try {
         loading = true;
-        const detailsUrl = `https://archive.org/details/${identifier}?output=json`;
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(detailsUrl)}`;
+        searchResults = [];
         
-        const detailsResponse = await fetch(proxyUrl);
-        const details = await detailsResponse.json();
-        
-        // Construir URL usando el formato estándar de Archive.org
-        const epubUrl = `https://archive.org/download/${identifier}/${identifier}_epub.epub`;
-        console.log('URL final del EPUB:', epubUrl);
-        
-        const response = await fetch(`/api/proxy?url=${encodeURIComponent(epubUrl)}`);
-        if (!response.ok) throw new Error('Error al descargar el libro');
-        
-        const arrayBuffer = await response.arrayBuffer();
-        const blob = new Blob([arrayBuffer], { type: 'application/epub+zip' });
-        
-        await goto('/reader', { state: { file: blob } });
-        
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error al cargar el EPUB. Por favor, intenta con otro libro.');
-    } finally {
-        loading = false;
-    }
-}
+        const searchUrl = 'https://archive.org/advancedsearch.php';
+        const params = new URLSearchParams({
+            q: `title:(${searchQuery}) AND language:(spa OR spanish)`,
+            fl: ['identifier', 'title', 'creator', 'mediatype', 'description'].join(','),
+            output: 'json',
+            rows: '50',
+            sort: ['downloads desc']
+        });
 
-
-
-
-
-
-
-
-
-
-
-    function handleKeyPress(event) {
-        if (event.key === 'Enter') {
-            searchBooks();
+        try {
+            const response = await fetch(`${searchUrl}?${params}`);
+            const data = await response.json();
+            searchResults = data.response.docs;
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error en la búsqueda');
+        } finally {
+            loading = false;
         }
     }
-</script>
-<div class="busqueda-container">
-    {#if !mostrarLector}
-        <h1>Buscar Libros</h1>
-        <div class="search-container">
-            <input 
-                type="text" 
-                bind:value={searchQuery} 
-                placeholder="Buscar libros en español..."
-                on:keypress={handleKeyPress}
-            />
-            <button on:click={searchBooks} disabled={loading}>
-                {loading ? 'Buscando...' : 'Buscar'}
-            </button>
-        </div>
 
+    function mostrarContenido(identifier) {
+        iframeLoading = true;
+        selectedItem = identifier;
+        
+        fetch(`https://archive.org/metadata/${identifier}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al conectar con Archive.org');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cargar el contenido. Intente nuevamente.');
+                selectedItem = null;
+                iframeLoading = false;
+            });
+    }
+</script>
+
+<div class="busqueda-container">
+    <h1>Biblioteca Digital</h1>
+    <div class="search-container">
+        <input
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Buscar contenido en español..."
+            on:keypress={(e) => e.key === 'Enter' && searchBooks()}
+        />
+        <button on:click={searchBooks} disabled={loading}>
+            {loading ? 'Buscando...' : 'Buscar'}
+        </button>
+    </div>
+
+    {#if selectedItem}
+        <div class="viewer-container">
+            <div class="viewer-controls">
+                <button class="back-button" on:click={() => selectedItem = null}>
+                    Volver a la búsqueda
+                </button>
+            </div>
+            
+            {#if iframeLoading}
+                <div class="loading-container">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Cargando visualizador...</p>
+                        <p class="loading-tip">Este proceso puede tardar unos segundos</p>
+                    </div>
+                </div>
+            {/if}
+            
+            <iframe
+                title="Archive.org Viewer"
+                src="https://archive.org/embed/{selectedItem}"
+                width="100%"
+                height="600px"
+                frameborder="0"
+                allowfullscreen
+                on:load={() => iframeLoading = false}
+            ></iframe>
+        </div>
+    {:else}
         <div class="search-status">
             {#if loading}
-                <p>Buscando libros...</p>
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>Buscando contenido...</p>
+                </div>
             {:else if searchResults.length > 0}
                 <p>Se encontraron {searchResults.length} resultados</p>
             {:else if searchQuery}
@@ -115,29 +110,28 @@ async function cargarLibro(identifier) {
             {/if}
         </div>
 
-        <div class="books-grid">
-            {#each searchResults as book}
-                <div class="book-card" on:click={() => cargarLibro(book.identifier)}>
-                    <div class="book-cover default-cover">📚</div>
-                    <div class="book-title">{book.title}</div>
-                    {#if book.creator}
-                        <div class="book-author">{book.creator}</div>
+        <div class="content-grid">
+            {#each searchResults as item}
+                <div class="content-card" on:click={() => mostrarContenido(item.identifier)}>
+                    <div class="content-icon">
+                        {#if item.mediatype === 'texts'}
+                            📚
+                        {:else if item.mediatype === 'movies'}
+                            🎥
+                        {:else if item.mediatype === 'audio'}
+                            🎵
+                        {:else}
+                            📄
+                        {/if}
+                    </div>
+                    <div class="content-title">{item.title}</div>
+                    {#if item.creator}
+                        <div class="content-creator">{item.creator}</div>
                     {/if}
+                    <div class="content-type">{item.mediatype}</div>
                 </div>
             {/each}
         </div>
-    {:else}
-    {#if mostrarLector}
-    <button class="back-button" on:click={() => mostrarLector = false}>
-        Volver a la búsqueda
-    </button>
-    <div class="reader-container">
-        <EpubReader {file} />
-    </div>
-{/if}
-
-
-
     {/if}
 </div>
 
@@ -169,25 +163,74 @@ async function cargarLibro(identifier) {
         border: none;
         border-radius: 4px;
         cursor: pointer;
-    }
-
-    .back-button {
-        margin-bottom: 1rem;
+        transition: background 0.3s ease;
     }
 
     button:hover {
         background: #04720a;
     }
 
-    .books-grid {
+    .viewer-container {
+        position: relative;
+    }
+
+    .viewer-controls {
+        display: flex;
+        padding: 1rem;
+        background: #f5f5f5;
+    }
+
+    .loading-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+    }
+
+    .loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        z-index: 10;
+    }
+
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 6px solid #f3f3f3;
+        border-top: 6px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1.5rem;
+    }
+
+    .loading-tip {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .content-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
         gap: 2rem;
         padding: 1rem;
     }
 
-    .book-card {
-        position: relative;
+    .content-card {
         border: 1px solid #ddd;
         border-radius: 8px;
         padding: 1rem;
@@ -196,53 +239,44 @@ async function cargarLibro(identifier) {
         background: white;
     }
 
-    .book-card:hover {
+    .content-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
 
-    .book-cover {
-        width: 100%;
-        height: 250px;
-        object-fit: cover;
-        border-radius: 4px;
-    }
-
-    .default-cover {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: #f0f0f0;
+    .content-icon {
         font-size: 3rem;
-    }
-
-    .book-title {
-        margin-top: 1rem;
         text-align: center;
-        font-size: 0.9rem;
-        font-weight: bold;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        margin-bottom: 1rem;
     }
 
-    .book-author {
+    .content-title {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        text-align: center;
+    }
+
+    .content-creator {
+        color: #666;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    .content-type {
+        margin-top: 0.5rem;
         text-align: center;
         font-size: 0.8rem;
-        color: #666;
-        margin-top: 0.5rem;
+        color: #888;
+        text-transform: uppercase;
     }
 
     .search-status {
         text-align: center;
         margin: 1rem 0;
         color: #666;
-    }
-    .reader-container {
-        width: 100%;
-        height: 90vh;
-        background: #fff;
-        border-radius: 8px;
-        overflow: hidden;
+        min-height: 60px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 </style>
