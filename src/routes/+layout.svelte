@@ -1,5 +1,12 @@
 <script>
     import Header from '$lib/components/Header.svelte';
+    import { beforeNavigate } from '$app/navigation';
+    
+    beforeNavigate(({ to }) => {
+        if (to?.url.pathname === '/spanish-books') {
+            fetch('/api/spanish-books?page=1');
+        }
+    });
 </script>
 
 <div class="app-container">

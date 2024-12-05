@@ -23,6 +23,8 @@
               <li><a href="/buscar">Archivo</a></li>
               <li><a href="/gutember">Gutenberg</a></li>
               <li><a href="/google">Descargar libros</a></li>
+              <li><a href="/spa" data-sveltekit-preload-data 
+                data-sveltekit-preload-code>Literatura Española</a></li>
         </ul>
     </nav>
 </header>
