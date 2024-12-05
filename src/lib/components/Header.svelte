@@ -17,14 +17,21 @@
         
         <ul class:active={isMenuOpen}>
           <li><a href="/">Inicio</a></li>
+<<<<<<< HEAD
               <li><a href="/biblioteca">Compartidos</a></li>
+=======
+              <li><a href="/biblioteca">Biblioteca</a></li>
+>>>>>>> 7e1c50f61d04944e0748d99243d9582c0133ce90
               <li><a href="/nube">Subir Libro</a></li>
               <li><a href="https://ximosa.github.io/historia/">Historico</a></li>
               <li><a href="/buscar">Archivo</a></li>
               <li><a href="/gutember">Gutenberg</a></li>
               <li><a href="/google">Descargar libros</a></li>
+<<<<<<< HEAD
               <li><a href="/spa" data-sveltekit-preload-data 
                 data-sveltekit-preload-code>Literatura Española</a></li>
+=======
+>>>>>>> 7e1c50f61d04944e0748d99243d9582c0133ce90
         </ul>
     </nav>
 </header>
@@ -51,6 +58,7 @@
         cursor: pointer;
         padding: 10px;
     }
+<<<<<<< HEAD
 
     .hamburger span {
         display: block;
@@ -104,3 +112,60 @@
         }
     }
 </style>
+=======
+
+    .hamburger span {
+        display: block;
+        width: 25px;
+        height: 3px;
+        background: white;
+        transition: 0.3s;
+    }
+
+    ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        gap: 2rem;
+    }
+
+    a {
+        color: white;
+        text-decoration: none;
+        font-size: 1.1rem;
+    }
+
+    a:hover {
+        color: #007bff;
+    }
+
+    @media (max-width: 768px) {
+        .hamburger {
+            display: flex;
+        }
+
+        ul {
+            display: none;
+            flex-direction: column;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #333;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        ul.active {
+            display: flex;
+        }
+
+        li {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+
+
+>>>>>>> 7e1c50f61d04944e0748d99243d9582c0133ce90

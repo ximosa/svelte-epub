@@ -11,4 +11,8 @@ export async function GET({ url }) {
             'Access-Control-Allow-Origin': '*'
         }
     });
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 7e1c50f61d04944e0748d99243d9582c0133ce90
